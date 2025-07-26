@@ -1,61 +1,121 @@
-networks:
-  inception:
-    name: inception
-
 services:
   nginx:
+    build: requirements/nginx
     container_name: nginx
-    build: ./requirements/nginx/
-    image: nginx:1337
-    ports:
-     - "443:443"
-    depends_on:
-      - wordpress
-    volumes:
-     - wordpress:/var/www/html
-    networks:
-      - inception
+    image: nginx:tar
     env_file:
       - .env
-    restart: always
+    depends_on:
+      - wordpress
+    ports:
+      - target: 443
+        published: 443
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - inception
+    restart: on-failure
+
+  mariadb:
+    build: requirements/mariadb
+    container_name: mariadb
+    image: mariadb:tar
+    env_file:
+      - .env
+    volumes:
+      - db:/var/lib/mysql
+    networks:
+      - inception
+    restart: on-failure
+
   wordpress:
+    build: requirements/wordpress
     container_name: wordpress
-    build: ./requirements/wordpress
-    image: wordpress:1337
+    image: wordpress:tar
+    env_file:
+      - .env
     depends_on:
       - mariadb
     volumes:
       - wordpress:/var/www/html
-    env_file:
-      - .env
     networks:
       - inception
-    restart: always
-  mariadb:
-    container_name: mariadb
-    build: ./requirements/mariadb
-    image: mariadb:1337
-    volumes:
-      - mariadb:/var/lib/mysql
-    env_file:
-      - .env
-    networks:
-      - inception
-    restart: always
+    restart: on-failure
 
+  static:
+    build: requirements/bonus/static
+    container_name: static
+    image: static:tar
+    env_file:
+      - .env
+    ports:
+      - target: 1200
+        published: 1200
+    networks:
+      - inception
+    restart:
+      on-failure
+
+  redis:
+    build: requirements/bonus/redis
+    container_name: redis
+    image: redis:tar
+    networks:
+      - inception
+    restart:
+      on-failure
+
+  ftp:
+    build: requirements/bonus/ftp
+    container_name: ftp
+    image: ftp:tar
+    env_file:
+      - .env
+    ports:
+      - "21:21"
+      - "30000-30009:30000-30009"
+    volumes:
+      - wordpress:/home/wordpress
+    networks:
+      - inception
+    restart:
+      on-failure
+
+  adminer:
+    build: requirements/bonus/adminer
+    container_name: adminer
+    image: adminer:tar
+    env_file:
+      - .env
+    ports:
+      - target: 8080
+        published: 8080
+    networks:
+      - inception
+    restart:
+      on-failure
+
+  rabbitmq:
+    build: requirements/bonus/rabbitmq
+    container_name: rabbitmq
+    image: rabbitmq:tar
+    env_file:
+      - .env
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    networks:
+      - inception
+    restart: on-failure
 
 volumes:
-        wordpress:
-                name: wordpress
-                driver: local
-                driver_opts:
-                        device: /home/mmad/Desktop/inception/srcs/requirements/wordpress
-                        o: bind
-                        type: none
-        mariadb:
-                name: mariadb
-                driver: local
-                driver_opts:
-                        device: /home/mmad/Desktop/inception/srcs/requirements/mariadb
-                        o: bind
-                        type: none
+  db:
+  wordpress:
+  rabbitmq:
+
+networks:
+  inception:
+    name: inception
+    driver: bridge
